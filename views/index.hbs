@@ -1,0 +1,128 @@
+
+<body>
+<input id="pac-input" class="controls" type="text" placeholder="Search Box">
+<div id="map"></div>
+<script>
+
+    function initAutocomplete() {
+        var map = new google.maps.Map(document.getElementById('map'), {
+            center: {lat: 10.7622916, lng: 106.6824567},
+            zoom: 17,
+            mapTypeId: 'roadmap'
+        });
+
+        // Create the search box and link it to the UI element.
+        var input = document.getElementById('pac-input');
+        var searchBox = new google.maps.places.SearchBox(input);
+        map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
+
+        // Bias the SearchBox results towards current map's viewport.
+        map.addListener('bounds_changed', function() {
+            searchBox.setBounds(map.getBounds());
+        });
+
+        var markers = [];
+        // Listen for the event fired when the user selects a prediction and retrieve
+        // more details for that place.
+        searchBox.addListener('places_changed', function() {
+            var places = searchBox.getPlaces();
+
+            if (places.length == 0) {
+                return;
+            }
+
+            // Clear out the old markers.
+            markers.forEach(function(marker) {
+                marker.setMap(null);
+            });
+            markers = [];
+
+            // For each place, get the icon, name and location.
+            var bounds = new google.maps.LatLngBounds();
+            places.forEach(function(place) {
+                if (!place.geometry) {
+                    console.log("Returned place contains no geometry");
+                    return;
+                }
+                var icon = {
+                    url: place.icon,
+                    size: new google.maps.Size(71, 71),
+                    origin: new google.maps.Point(0, 0),
+                    anchor: new google.maps.Point(17, 34),
+                    scaledSize: new google.maps.Size(25, 25)
+                };
+
+                // Create a marker for each place.
+                markers.push(new google.maps.Marker({
+                    map: map,
+                    icon: icon,
+                    title: place.name,
+                    position: place.geometry.location
+                }));
+
+                if (place.geometry.viewport) {
+                    var url= "https://maps.googleapis.com/maps/api/geocode/json?place_id=";
+                    url = url + place.place_id+"&key=AIzaSyAJUTKfWekYTp8s1nK8JQum0gTwCaNpElw"
+                    $.ajax({
+                        type: "GET",
+                        url: url,
+
+                        cache: false,
+                        success: function (data) {
+                            if(data.status =="OK"){
+                                var location = {
+                                    lat : 0,
+                                    lng : 0
+                                };
+                                location.lat = data.results["0"].geometry.location.lat;
+                                location.lng = data.results["0"].geometry.location.lng;
+                                transferLocation(map,markers,location.lat,location.lng)
+
+
+                                console.log(location);
+                            }
+                        }
+                    });
+
+                    // Only geocodes have viewport.
+                    bounds.union(place.geometry.viewport);
+                } else {
+                    bounds.extend(place.geometry.location);
+
+
+                }
+            });
+            map.fitBounds(bounds);
+        });
+    }
+
+    function transferLocation(map,markers,lat,lng)
+    {
+        var url = "https://api.instagram.com/v1/locations/search?lat="+lat+"&lng="+lng+"&distance=200&access_token=3651280389.4a2ba92.9fb0210a4472490287778806684ff023";
+        console.log(url);
+        $.ajax({
+            type: "GET",
+            dataType: 'jsonp',
+            url: url,
+            cache: false,
+            success: function (data) {
+                data.data.forEach(function(marker) {
+                    markers.push(
+                        new google.maps.Marker({
+                            map: map,
+
+                            title: marker.name,
+                            position:{lat: marker.latitude, lng:marker.longitude}
+                    }));
+                });
+                console.log(data)
+            }
+        })
+    }
+
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAJUTKfWekYTp8s1nK8JQum0gTwCaNpElw&libraries=places&callback=initAutocomplete"
+        async defer></script>
+
+</body>
+
